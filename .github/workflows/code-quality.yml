@@ -1,0 +1,68 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: Check bundle size
+      run: |
+        npm run build
+        echo "Build size analysis:"
+        du -sh dist/*
+
+    - name: Verify build works
+      run: |
+        npm run build
+        npm run preview &
+        sleep 5
+        curl -f http://localhost:4173 || (echo "Build verification failed" && exit 1)
+
+  performance:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Analyze bundle
+      run: |
+        echo "Analyzing build output:"
+        find dist -name "*.js" -exec wc -c {} + | sort -n
+        echo "Total build size:"
+        du -sh dist
